@@ -35,8 +35,18 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release in fain-app
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/app-release.apk
           generate_release_notes: true
+
+      - name: Mirror Release to main repo (lqsaf/fain)
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: lqsaf/fain
+          token: ${{ secrets.MAIN_REPO_TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          name: Android App ${{ github.ref_name }}
+          files: app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: false
