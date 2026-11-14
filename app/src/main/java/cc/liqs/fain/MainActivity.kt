@@ -8,6 +8,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
@@ -58,6 +59,11 @@ fun FainWeb(modifier: Modifier = Modifier) {
     var isRefreshing by remember { mutableStateOf(false) }
     var webView by remember { mutableStateOf<WebView?>(null) }
     val state = rememberPullToRefreshState()
+    var canGoBack by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = canGoBack) {
+        webView?.goBack()
+    }
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -116,6 +122,11 @@ fun FainWeb(modifier: Modifier = Modifier) {
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
                                 isRefreshing = false
+                                canGoBack = view?.canGoBack() == true
+                            }
+                            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                                super.doUpdateVisitedHistory(view, url, isReload)
+                                canGoBack = view?.canGoBack() == true
                             }
                         }
                         settings.apply {
