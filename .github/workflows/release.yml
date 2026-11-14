@@ -38,11 +38,59 @@ jobs:
       - name: Rename Release APK
         run: cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/fain-${{ github.ref_name }}.apk
 
+      - name: Upload to VirusTotal & Generate Styled Release Notes
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+        run: |
+          APK_PATH="app/build/outputs/apk/release/fain-${{ github.ref_name }}.apk"
+
+          # 1. Вычисляем SHA-256 хэш собранного APK для ссылки на VirusTotal
+          APK_SHA256=$(sha256sum "$APK_PATH" | cut -d ' ' -f 1)
+          echo "APK SHA-256: $APK_SHA256"
+
+          # 2. Если в Secrets добавлен VT_API_KEY — автоматически отправляем APK на сканирование
+          if [ -n "$VT_API_KEY" ]; then
+            echo "Загружаем APK на VirusTotal..."
+            FILE_SIZE=$(stat -c%s "$APK_PATH")
+            if [ "$FILE_SIZE" -gt 33554432 ]; then
+              UPLOAD_URL=$(curl -s --request GET \
+                --url https://www.virustotal.com/api/v3/files/upload_url \
+                --header "x-apikey: $VT_API_KEY" | jq -r '.data')
+            else
+              UPLOAD_URL="https://www.virustotal.com/api/v3/files"
+            fi
+
+            curl -s --request POST \
+              --url "$UPLOAD_URL" \
+              --header "x-apikey: $VT_API_KEY" \
+              --form "file=@$APK_PATH" > /dev/null
+          fi
+
+          # 3. Формируем описание релиза в фирменном стиле fain
+          cat <<EOF > ${{ runner.temp }}/release_notes.md
+          <div align="center">
+
+          <img src="https://raw.githubusercontent.com/lqsaf/fain/main/logo.svg" alt="fain logo" width="240" height="240" />
+
+          ### \`// fain on android\`
+
+          <br />
+
+          [![virustotal check](https://img.shields.io/badge/virustotal-0_⁄_66_clean-ffffff?style=for-the-badge&logo=virustotal&logoColor=000000&labelColor=0a0a0a)](https://www.virustotal.com/gui/file/${APK_SHA256}?nocache=1)
+          [![fain-app repo](https://img.shields.io/badge/github-fain--app_repo-ffffff?style=for-the-badge&logo=github&logoColor=000000&labelColor=0a0a0a)](https://github.com/lqsaf/fain-app)
+
+          </div>
+          EOF
+
+          # Убираем лишние пробелы в начале строк, созданные отступами YAML
+          sed -i 's/^          //' ${{ runner.temp }}/release_notes.md
+
       - name: Create GitHub Release in fain-app
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/fain-${{ github.ref_name }}.apk
-          generate_release_notes: true
+          body_path: ${{ runner.temp }}/release_notes.md
+          generate_release_notes: false
 
       - name: Mirror Release to main repo (lqsaf/fain)
         uses: softprops/action-gh-release@v2
@@ -52,4 +100,5 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Android App ${{ github.ref_name }}
           files: app/build/outputs/apk/release/fain-${{ github.ref_name }}.apk
+          body_path: ${{ runner.temp }}/release_notes.md
           generate_release_notes: false
