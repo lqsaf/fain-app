@@ -166,14 +166,20 @@ fun FainWeb(
                                 if (v.scrollY > 0) {
                                     startY = event.y
                                     isPulling = false
-                                } else if (event.y > startY && !isRefreshing) {
-                                    if (!isPulling) {
-                                        startY = event.y
-                                        isPulling = true
-                                    } else {
-                                        scope.launch { state.snapTo((event.y - startY) / 300f) }
+                                } else if (!isRefreshing) {
+                                    val dy = event.y - startY
+                                    if (dy > 0) {
+                                        if (!isPulling) {
+                                            startY = event.y
+                                            isPulling = true
+                                        } else {
+                                            scope.launch { state.snapTo(dy / 300f) }
+                                        }
+                                        return@setOnTouchListener true
+                                    } else if (isPulling) {
+                                        isPulling = false
+                                        scope.launch { state.snapTo(0f) }
                                     }
-                                    return@setOnTouchListener true
                                 }
                             }
                             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (isPulling) {
