@@ -13,8 +13,8 @@ android {
         applicationId = "cc.liqs.fain"
         minSdk = 24
         targetSdk = 37
-        versionCode = 4
-        versionName = "0.1"
+        versionCode = 5
+        versionName = "0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
