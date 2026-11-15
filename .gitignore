@@ -16,3 +16,4 @@ local.properties
 
 /.idea/deploymentTargetSelector.xml
 /app/release/
+/app/src/styles.css
