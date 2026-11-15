@@ -17,9 +17,16 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -34,6 +41,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -62,11 +70,30 @@ class MainActivity : ComponentActivity() {
             }
 
             FainTheme(customBackground = bgColor) {
-                Scaffold(containerColor = bgColor) { padding ->
-                    FainWeb(
-                        modifier = Modifier.padding(padding),
-                        onBgChanged = { bgColor = it }
-                    )
+                Scaffold(containerColor = bgColor) { innerPadding ->
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        FainWeb(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = innerPadding.calculateTopPadding()),
+                            onBgChanged = { bgColor = it }
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            bgColor.copy(alpha = 0.85f)
+                                        )
+                                    )
+                                )
+                        )
+                    }
                 }
             }
         }
@@ -214,6 +241,23 @@ private const val THEME_OBSERVER_JS = """
     sendTheme();
     if (window.__bgObserver) return;
     window.__bgObserver = true;
+
+    var blurBar = document.createElement('div');
+    blurBar.style.cssText = [
+        'position:fixed',
+        'left:0',
+        'right:0',
+        'bottom:0',
+        'height:calc(env(safe-area-inset-bottom, 24px) + 24px)',
+        'backdrop-filter:blur(12px)',
+        '-webkit-backdrop-filter:blur(12px)',
+        'mask-image:linear-gradient(to bottom, transparent 0%, black 100%)',
+        '-webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 100%)',
+        'pointer-events:none',
+        'z-index:99999'
+    ].join(';');
+    document.body?.appendChild(blurBar);
+
     var obs = new MutationObserver(sendTheme);
     var cfg = { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] };
     obs.observe(document.documentElement, cfg);
