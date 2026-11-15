@@ -31,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -44,10 +45,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.toColorInt
+import cc.liqs.fain.ui.UpdateChecker
+import cc.liqs.fain.ui.UpdateDialog
+import cc.liqs.fain.ui.UpdateInfo
 import cc.liqs.fain.ui.theme.FainTheme
 import kotlinx.coroutines.launch
 
@@ -57,6 +62,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             var bgColor by remember { mutableStateOf(Color(0xFF000000)) }
+            var logoTint by remember { mutableStateOf(Color.White) }
+            var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+            val context = LocalContext.current
+            val currentVersion = remember { UpdateChecker.getAppVersion(context) }
+
+            LaunchedEffect(Unit) {
+                val update = UpdateChecker.checkForUpdates(currentVersion)
+                if (update != null) {
+                    updateInfo = update
+                }
+            }
+
             val isLight = bgColor.luminance() > 0.5f
 
             SideEffect {
@@ -75,7 +92,8 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(top = innerPadding.calculateTopPadding()),
-                            onBgChanged = { bgColor = it }
+                            onBgChanged = { bgColor = it },
+                            onTextColorChanged = { logoTint = it }
                         )
 
                         Box(
@@ -92,6 +110,16 @@ class MainActivity : ComponentActivity() {
                                     )
                                 )
                         )
+
+                        updateInfo?.let { info ->
+                            UpdateDialog(
+                                updateInfo = info,
+                                currentVersion = currentVersion,
+                                bgColor = bgColor,
+                                textColor = logoTint,
+                                onDismiss = { updateInfo = null }
+                            )
+                        }
                     }
                 }
             }
@@ -105,7 +133,8 @@ private fun String.toColorOrNull(): Int? = runCatching { trim().toColorInt() }.g
 @Composable
 fun FainWeb(
     modifier: Modifier = Modifier,
-    onBgChanged: (Color) -> Unit = {}
+    onBgChanged: (Color) -> Unit = {},
+    onTextColorChanged: (Color) -> Unit = {}
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     var canGoBack by remember { mutableStateOf(false) }
@@ -162,7 +191,11 @@ fun FainWeb(
                                     setBackgroundColor(it)
                                     onBgChanged(Color(it))
                                 }
-                                rawText.toColorOrNull()?.let { logoTint = Color(it) }
+                                rawText.toColorOrNull()?.let {
+                                    val parsedColor = Color(it)
+                                    logoTint = parsedColor
+                                    onTextColorChanged(parsedColor)
+                                }
                             }
                         }
                     }, "AndroidTheme")
@@ -262,5 +295,9 @@ private const val THEME_OBSERVER_JS = """
     obs.observe(document.documentElement, cfg);
     if (document.body) obs.observe(document.body, cfg);
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', sendTheme);
+    
+    var noSelect = document.createElement('style');
+    noSelect.textContent = '* { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } input, textarea { -webkit-user-select: text; user-select: text; }';
+    document.head?.appendChild(noSelect);
 })();
 """
